@@ -157,11 +157,15 @@ export default function App() {
     );
 
     const data = await res.json();
-    if (data.error) throw new Error(data.error.message);
+    if (data.error) throw new Error(`API Error: ${data.error.message}`);
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '{"medicines":[]}';
-    const clean = text.replace(/```json|```/g, '').trim();
-    const parsed = JSON.parse(clean);
-    return { medicines: Array.isArray(parsed.medicines) ? parsed.medicines : [] };
+    try {
+      const clean = text.replace(/```json|```/g, '').trim();
+      const parsed = JSON.parse(clean);
+      return { medicines: Array.isArray(parsed.medicines) ? parsed.medicines : [] };
+    } catch {
+      return { medicines: [] };
+    }
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -184,10 +188,10 @@ export default function App() {
           setScannedMedicines([]);
           setScanState('results');
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error(err);
         resetScan();
-        alert("Failed to scan image. Check your API key.");
+        alert("Error: " + (err?.message || "Unknown error. Check browser console."));
       }
     };
     reader.readAsDataURL(file);
