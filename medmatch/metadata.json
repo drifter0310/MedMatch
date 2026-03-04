@@ -1,0 +1,5 @@
+{
+  "name": "MedMatch",
+  "description": "Snap a photo of your medicine to find cheaper, verified generic alternatives.",
+  "requestFramePermissions": ["camera"]
+}
