@@ -1,8 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Camera, History, Settings, Upload, ChevronRight, CheckCircle2, AlertCircle, Search, ArrowLeft, Globe, User, MapPin, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { GoogleGenAI, Type } from '@google/genai';
-
 type Tab = 'dashboard' | 'history' | 'settings';
 type ScanState = 'idle' | 'scanning' | 'results';
 type Lang = 'en' | 'bn';
@@ -85,8 +83,7 @@ const SplitCapsuleLogo = ({ className }: { className?: string }) => (
   </svg>
 );
 
-// ✅ Initialize Gemini directly in frontend using Vite env variable
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || '' });
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -137,57 +134,31 @@ export default function App() {
     });
   };
 
-  // ✅ Call Gemini API directly from frontend
+  // ✅ Call Gemini REST API directly — no package needed
   const scanImage = async (base64: string) => {
     const mimeType = base64.substring(base64.indexOf(':') + 1, base64.indexOf(';'));
     const base64Data = base64.split(',')[1];
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: {
-        parts: [
-          { inlineData: { mimeType, data: base64Data } },
-          { text: "Analyze this prescription or medicine strip. Identify all medicines. For each medicine, provide its original name, generic compound, estimated original price per pill in BDT, and exactly 5 cheaper generic alternatives available in Bangladesh with their manufacturer, price per pill in BDT, and savings compared to the original. Ensure 'verified' is true for DGDA verified medicines." }
-        ]
-      },
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            medicines: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  originalName: { type: Type.STRING },
-                  genericCompound: { type: Type.STRING },
-                  originalPrice: { type: Type.NUMBER },
-                  alternatives: {
-                    type: Type.ARRAY,
-                    items: {
-                      type: Type.OBJECT,
-                      properties: {
-                        name: { type: Type.STRING },
-                        manufacturer: { type: Type.STRING },
-                        price: { type: Type.NUMBER },
-                        savings: { type: Type.NUMBER },
-                        verified: { type: Type.BOOLEAN }
-                      },
-                      required: ["name", "manufacturer", "price", "savings", "verified"]
-                    }
-                  }
-                },
-                required: ["originalName", "genericCompound", "originalPrice", "alternatives"]
-              }
-            }
-          },
-          required: ["medicines"]
-        }
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { inline_data: { mime_type: mimeType, data: base64Data } },
+              { text: "Analyze this prescription or medicine strip. Identify all medicines. For each medicine provide: originalName, genericCompound, originalPrice (BDT per pill), and exactly 5 cheaper alternatives in Bangladesh each with name, manufacturer, price (BDT per pill), savings, verified (boolean). Respond ONLY with valid JSON in this format: {\"medicines\":[{\"originalName\":\"\",\"genericCompound\":\"\",\"originalPrice\":0,\"alternatives\":[{\"name\":\"\",\"manufacturer\":\"\",\"price\":0,\"savings\":0,\"verified\":true}]}]}" }
+            ]
+          }],
+          generationConfig: { responseMimeType: "application/json" }
+        })
       }
-    });
+    );
 
-    return JSON.parse(response.text || "{}");
+    const data = await res.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+    return JSON.parse(text.replace(/```json|```/g, '').trim());
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
