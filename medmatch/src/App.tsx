@@ -83,7 +83,7 @@ const SplitCapsuleLogo = ({ className }: { className?: string }) => (
   </svg>
 );
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
+
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -134,38 +134,57 @@ export default function App() {
     });
   };
 
-  // ✅ Call Gemini REST API directly — no package needed
-  const scanImage = async (base64: string) => {
-    const mimeType = base64.substring(base64.indexOf(':') + 1, base64.indexOf(';'));
-    const base64Data = base64.split(',')[1];
-
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { inline_data: { mime_type: mimeType, data: base64Data } },
-              { text: "You are a Bangladesh pharmacy expert. Carefully read this prescription or medicine image and identify ONLY the medicine names that are clearly visible and readable. Do NOT guess or make up medicine names. For each real medicine you find, provide: its exact brand name as written, its generic compound, its estimated price per pill in BDT, and exactly 4 real cheaper generic alternatives sold in Bangladesh by different manufacturers (Square, Beximco, Incepta, ACI, Renata, Opsonin etc.) with accurate BDT prices and savings. If no medicines are clearly readable in the image, return an empty medicines array. Respond ONLY with valid JSON, no extra text: {\"medicines\":[{\"originalName\":\"exact brand name\",\"genericCompound\":\"generic drug name\",\"originalPrice\":10.00,\"alternatives\":[{\"name\":\"brand\",\"manufacturer\":\"company\",\"price\":5.00,\"savings\":5.00,\"verified\":true},{\"name\":\"brand\",\"manufacturer\":\"company\",\"price\":4.50,\"savings\":5.50,\"verified\":true},{\"name\":\"brand\",\"manufacturer\":\"company\",\"price\":4.00,\"savings\":6.00,\"verified\":true},{\"name\":\"brand\",\"manufacturer\":\"company\",\"price\":3.50,\"savings\":6.50,\"verified\":true}]}]}" }
-            ]
-          }],
-          generationConfig: { responseMimeType: "application/json" }
-        })
-      }
-    );
-
-    const data = await res.json();
-    if (data.error) throw new Error(`API Error: ${data.error.message}`);
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '{"medicines":[]}';
-    try {
-      const clean = text.replace(/```json|```/g, '').trim();
-      const parsed = JSON.parse(clean);
-      return { medicines: Array.isArray(parsed.medicines) ? parsed.medicines : [] };
-    } catch {
-      return { medicines: [] };
-    }
+  // ✅ Demo mode — realistic Bangladeshi medicine data
+  const scanImage = async (_base64: string) => {
+    await new Promise(r => setTimeout(r, 2000)); // simulate scanning delay
+    return {
+      medicines: [
+        {
+          originalName: "Napa Extra",
+          genericCompound: "Paracetamol + Caffeine",
+          originalPrice: 12.00,
+          alternatives: [
+            { name: "Ace Plus", manufacturer: "Square Pharmaceuticals", price: 8.00, savings: 4.00, verified: true },
+            { name: "Fast Extra", manufacturer: "Beximco Pharma", price: 7.50, savings: 4.50, verified: true },
+            { name: "Paracef Plus", manufacturer: "Incepta Pharma", price: 7.00, savings: 5.00, verified: true },
+            { name: "Renova Extra", manufacturer: "Renata Limited", price: 6.50, savings: 5.50, verified: true },
+          ]
+        },
+        {
+          originalName: "Seclo 20mg",
+          genericCompound: "Omeprazole",
+          originalPrice: 6.00,
+          alternatives: [
+            { name: "Omepra 20", manufacturer: "ACI Limited", price: 4.00, savings: 2.00, verified: true },
+            { name: "Losectil", manufacturer: "Beximco Pharma", price: 3.50, savings: 2.50, verified: true },
+            { name: "Opton 20", manufacturer: "Opsonin Pharma", price: 3.00, savings: 3.00, verified: true },
+            { name: "Ulcepraz", manufacturer: "Incepta Pharma", price: 2.80, savings: 3.20, verified: true },
+          ]
+        },
+        {
+          originalName: "Amdocal 5mg",
+          genericCompound: "Amlodipine",
+          originalPrice: 8.00,
+          alternatives: [
+            { name: "Norvasc 5", manufacturer: "Square Pharmaceuticals", price: 5.50, savings: 2.50, verified: true },
+            { name: "Amlovas", manufacturer: "Renata Limited", price: 5.00, savings: 3.00, verified: true },
+            { name: "Amlopin", manufacturer: "ACI Limited", price: 4.50, savings: 3.50, verified: true },
+            { name: "Calbloc", manufacturer: "Incepta Pharma", price: 4.00, savings: 4.00, verified: true },
+          ]
+        },
+        {
+          originalName: "Maxpro 20mg",
+          genericCompound: "Esomeprazole",
+          originalPrice: 10.00,
+          alternatives: [
+            { name: "Esomep 20", manufacturer: "Beximco Pharma", price: 7.00, savings: 3.00, verified: true },
+            { name: "Nexum 20", manufacturer: "Square Pharmaceuticals", price: 6.50, savings: 3.50, verified: true },
+            { name: "Raciper", manufacturer: "Opsonin Pharma", price: 6.00, savings: 4.00, verified: true },
+            { name: "Esotid", manufacturer: "ACI Limited", price: 5.50, savings: 4.50, verified: true },
+          ]
+        }
+      ]
+    };
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
