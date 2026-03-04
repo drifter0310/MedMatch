@@ -41,7 +41,7 @@ const TRANSLATIONS = {
     snap: "Snap Photo", upload: "Upload from Gallery",
     analyzing: "Analyzing chemical compound...", identifying: "Identifying alternatives...",
     scannedItem: "Scanned Item", genericCompound: "Generic Compound",
-    cheaperAlts: "5 Cheaper Alternatives", availableNow: "Available Now",
+    cheaperAlts: "4 Cheaper Alternatives", availableNow: "Available Now",
     save: "Save", scan: "Scan", history: "History", settings: "Settings",
     scanHistory: "Scan History", saved: "Saved", language: "Language",
     notifications: "Notifications", pharmacy: "Preferred Pharmacy",
@@ -57,7 +57,7 @@ const TRANSLATIONS = {
     snap: "ছবি তুলুন", upload: "গ্যালারি থেকে আপলোড",
     analyzing: "উপাদান বিশ্লেষণ করা হচ্ছে...", identifying: "বিকল্প খোঁজা হচ্ছে...",
     scannedItem: "স্ক্যান করা ওষুধ", genericCompound: "জেনেরিক উপাদান",
-    cheaperAlts: "৫টি সস্তা বিকল্প", availableNow: "এখন উপলব্ধ",
+    cheaperAlts: "৪টি সস্তা বিকল্প", availableNow: "এখন উপলব্ধ",
     save: "সাশ্রয়", scan: "স্ক্যান", history: "ইতিহাস", settings: "সেটিংস",
     scanHistory: "স্ক্যান ইতিহাস", saved: "সাশ্রয়", language: "ভাষা",
     notifications: "নোটিফিকেশন", pharmacy: "পছন্দের ফার্মেসি",
@@ -148,7 +148,7 @@ export default function App() {
           contents: [{
             parts: [
               { inline_data: { mime_type: mimeType, data: base64Data } },
-              { text: "Analyze this prescription or medicine strip. Identify all medicines. For each medicine provide: originalName, genericCompound, originalPrice (BDT per pill), and exactly 5 cheaper alternatives in Bangladesh each with name, manufacturer, price (BDT per pill), savings, verified (boolean). Respond ONLY with valid JSON in this format: {\"medicines\":[{\"originalName\":\"\",\"genericCompound\":\"\",\"originalPrice\":0,\"alternatives\":[{\"name\":\"\",\"manufacturer\":\"\",\"price\":0,\"savings\":0,\"verified\":true}]}]}" }
+              { text: "You are a Bangladesh pharmacy expert. Carefully read this prescription or medicine image and identify ONLY the medicine names that are clearly visible and readable. Do NOT guess or make up medicine names. For each real medicine you find, provide: its exact brand name as written, its generic compound, its estimated price per pill in BDT, and exactly 4 real cheaper generic alternatives sold in Bangladesh by different manufacturers (Square, Beximco, Incepta, ACI, Renata, Opsonin etc.) with accurate BDT prices and savings. If no medicines are clearly readable in the image, return an empty medicines array. Respond ONLY with valid JSON, no extra text: {\"medicines\":[{\"originalName\":\"exact brand name\",\"genericCompound\":\"generic drug name\",\"originalPrice\":10.00,\"alternatives\":[{\"name\":\"brand\",\"manufacturer\":\"company\",\"price\":5.00,\"savings\":5.00,\"verified\":true},{\"name\":\"brand\",\"manufacturer\":\"company\",\"price\":4.50,\"savings\":5.50,\"verified\":true},{\"name\":\"brand\",\"manufacturer\":\"company\",\"price\":4.00,\"savings\":6.00,\"verified\":true},{\"name\":\"brand\",\"manufacturer\":\"company\",\"price\":3.50,\"savings\":6.50,\"verified\":true}]}]}" }
             ]
           }],
           generationConfig: { responseMimeType: "application/json" }
@@ -157,8 +157,11 @@ export default function App() {
     );
 
     const data = await res.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-    return JSON.parse(text.replace(/```json|```/g, '').trim());
+    if (data.error) throw new Error(data.error.message);
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '{"medicines":[]}';
+    const clean = text.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(clean);
+    return { medicines: Array.isArray(parsed.medicines) ? parsed.medicines : [] };
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
